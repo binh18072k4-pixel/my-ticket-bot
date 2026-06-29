@@ -2,54 +2,46 @@ const { Client, GatewayIntentBits, EmbedBuilder, ActionRowBuilder, ButtonBuilder
 const http = require('http');
 require('dotenv').config();
 
-// 1. TẠO WEB SERVER ĐỂ RENDER KHÔNG TẮT BOT (Dành cho gói Free)
-const server = http.createServer((req, res) => {
-    res.writeHead(200, { 'Content-Type': 'text/plain' });
-    res.end('Bot is running!');
-});
+// Giữ server sống
+const server = http.createServer((req, res) => { res.end('OK'); });
 server.listen(process.env.PORT || 3000);
 
-// 2. KHỞI TẠO BOT
 const client = new Client({ 
-    intents: [
-        GatewayIntentBits.Guilds, 
-        GatewayIntentBits.GuildMessages, 
-        GatewayIntentBits.MessageContent 
-    ] 
+    intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent] 
 });
 
 client.once('ready', () => {
     console.log(`Bot đã sẵn sàng! Đăng nhập: ${client.user.tag}`);
 });
 
-// Lệnh !setup để gửi khung tin nhắn
 client.on('messageCreate', async (message) => {
     if (message.content === '!setup') {
-        const ticketEmbed = new EmbedBuilder()
-            .setColor('#2ecc71')
-            .setTitle('📅 Đặt Lịch Dịch Vụ')
-            .setDescription('Nhấn vào nút **Đặt Lịch Ngay** bên dưới để mở yêu cầu hỗ trợ.')
+        const embed = new EmbedBuilder()
+            .setColor('#FF007F') // Màu hồng neon sống động
+            .setTitle('🎫 HỆ THỐNG ĐẶT LỊCH HỖ TRỢ')
+            .setDescription('Chào bạn! Nhấn vào nút **Đặt Lịch Ngay** để mở yêu cầu hỗ trợ riêng tư với đội ngũ của chúng tôi.')
             .setThumbnail(client.user.displayAvatarURL())
-            .setFooter({ text: 'Hệ thống tự động', iconURL: client.user.displayAvatarURL() });
+            .addFields(
+                { name: '✅ Nhanh chóng', value: 'Phản hồi trong vài phút', inline: true },
+                { name: '🔒 Bảo mật', value: 'Kênh chat riêng tư', inline: true }
+            )
+            .setFooter({ text: 'Hệ thống hỗ trợ 24/7', iconURL: client.user.displayAvatarURL() });
 
         const row = new ActionRowBuilder().addComponents(
             new ButtonBuilder()
                 .setCustomId('create_ticket')
                 .setLabel('Đặt Lịch Ngay')
                 .setStyle(ButtonStyle.Success)
-                .setEmoji('🎫')
+                .setEmoji('📅')
         );
 
-        await message.channel.send({ embeds: [ticketEmbed], components: [row] });
+        await message.channel.send({ embeds: [embed], components: [row] });
     }
 });
 
-// XỬ LÝ NÚT BẤM (Đã sửa lỗi "Tương tác không thành công")
 client.on('interactionCreate', async (interaction) => {
     if (!interaction.isButton()) return;
     if (interaction.customId === 'create_ticket') {
-        
-        // Phản hồi ngay lập tức để tránh lỗi Timeout
         await interaction.deferReply({ ephemeral: true });
 
         try {
@@ -63,10 +55,16 @@ client.on('interactionCreate', async (interaction) => {
                 ],
             });
 
-            await interaction.editReply({ content: `✅ Đã tạo ticket thành công tại: ${channel}` });
+            const ticketEmbed = new EmbedBuilder()
+                .setColor('#00FF00')
+                .setTitle('🎉 Chào mừng bạn đến với Ticket!')
+                .setDescription(`Xin chào ${interaction.user}, vui lòng nêu vấn đề của bạn, đội ngũ hỗ trợ sẽ sớm trả lời bạn!`);
+
+            await channel.send({ content: `${interaction.user}`, embeds: [ticketEmbed] });
+            await interaction.editReply({ content: `✅ Đã tạo kênh hỗ trợ riêng cho bạn: ${channel}` });
         } catch (error) {
             console.error(error);
-            await interaction.editReply({ content: '❌ Lỗi: Bot không có quyền tạo kênh. Vui lòng cấp quyền Administrator cho bot.' });
+            await interaction.editReply({ content: '❌ Lỗi: Bot không có quyền tạo kênh!' });
         }
     }
 });
