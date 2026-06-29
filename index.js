@@ -1,4 +1,4 @@
-const { Client, GatewayIntentBits, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+const { Client, GatewayIntentBits, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ChannelType, PermissionsBitField } = require('discord.js');
 require('dotenv').config();
 
 const client = new Client({ 
@@ -10,45 +10,65 @@ const client = new Client({
 });
 
 client.once('ready', () => {
-    console.log(`Bot đã sẵn sàng! Đăng nhập với tư cách: ${client.user.tag}`);
+    console.log(`Bot đã sẵn sàng! Đăng nhập: ${client.user.tag}`);
 });
 
-// Lệnh ví dụ để gửi khung Ticket (Bạn có thể gõ !setup để bot gửi)
+// Lệnh !setup để gửi khung tin nhắn
 client.on('messageCreate', async (message) => {
     if (message.content === '!setup') {
-        
-        // 1. Tạo khung Embed sang trọng
         const ticketEmbed = new EmbedBuilder()
-            .setColor('#2ecc71') // Màu xanh lá cho nút "Success"
+            .setColor('#2ecc71')
             .setTitle('📅 Đặt Lịch Dịch Vụ')
-            .setDescription('Chào bạn! Hệ thống đặt lịch đã sẵn sàng.\n\nNhấn vào nút **Đặt Lịch Ngay** bên dưới để mở yêu cầu trò chuyện hoặc chơi game. Chúng mình sẽ phản hồi bạn sớm nhất có thể!')
-            .addFields(
-                { name: '⏰ Thời gian phản hồi', value: 'Trong vòng 15-30 phút', inline: true },
-                { name: '🎮 Dịch vụ', value: 'Trò chuyện / Chơi game', inline: true }
-            )
-            .setTimestamp() // Hiện thời gian gửi
-            .setFooter({ text: 'Hệ thống tự động bởi Ticket Tool', iconURL: client.user.displayAvatarURL() });
+            .setDescription('Nhấn vào nút bên dưới để bắt đầu đặt lịch!')
+            .setFooter({ text: 'Hệ thống hỗ trợ tự động' });
 
-        // 2. Tạo nút bấm sinh động
-        const row = new ActionRowBuilder()
-            .addComponents(
-                new ButtonBuilder()
-                    .setCustomId('create_ticket')
-                    .setLabel('Đặt Lịch Ngay')
-                    .setStyle(ButtonStyle.Success) // Màu xanh lá
-                    .setEmoji('🎫') // Thêm icon vé
-            );
+        const row = new ActionRowBuilder().addComponents(
+            new ButtonBuilder()
+                .setCustomId('create_ticket')
+                .setLabel('Đặt Lịch Ngay')
+                .setStyle(ButtonStyle.Success)
+                .setEmoji('🎫')
+        );
 
-        // 3. Gửi tin nhắn vào kênh
         await message.channel.send({ embeds: [ticketEmbed], components: [row] });
     }
 });
 
-// Xử lý khi nhấn vào nút
+// XỬ LÝ NÚT BẤM (Đã tối ưu để không bị lỗi timeout)
 client.on('interactionCreate', async (interaction) => {
     if (!interaction.isButton()) return;
     if (interaction.customId === 'create_ticket') {
-        await interaction.reply({ content: '✅ Đã nhận yêu cầu! Đang tạo ticket cho bạn...', ephemeral: true });
+        
+        // 1. Phản hồi "ngầm" cho Discord biết là bot đã nhận lệnh
+        await interaction.deferReply({ ephemeral: true });
+
+        try {
+            // 2. Tạo kênh mới
+            const channel = await interaction.guild.channels.create({
+                name: `ticket-${interaction.user.username}`,
+                type: ChannelType.GuildText,
+                permissionOverwrites: [
+                    {
+                        id: interaction.guild.id,
+                        deny: [PermissionsBitField.Flags.ViewChannel],
+                    },
+                    {
+                        id: interaction.user.id,
+                        allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages],
+                    },
+                ],
+            });
+
+            // 3. Cập nhật kết quả vào tin nhắn ẩn đã defer
+            await interaction.editReply({ 
+                content: `✅ Đã tạo ticket thành công tại: ${channel}` 
+            });
+        } catch (error) {
+            console.error(error);
+            await interaction.editReply({ 
+                content: '❌ Có lỗi xảy ra, hãy kiểm tra quyền của bot!' 
+            });
+        }
     }
 });
 
