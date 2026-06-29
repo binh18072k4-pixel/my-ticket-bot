@@ -1,6 +1,15 @@
 const { Client, GatewayIntentBits, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ChannelType, PermissionsBitField } = require('discord.js');
+const http = require('http');
 require('dotenv').config();
 
+// 1. TẠO WEB SERVER ĐỂ RENDER KHÔNG TẮT BOT (Dành cho gói Free)
+const server = http.createServer((req, res) => {
+    res.writeHead(200, { 'Content-Type': 'text/plain' });
+    res.end('Bot is running!');
+});
+server.listen(process.env.PORT || 3000);
+
+// 2. KHỞI TẠO BOT
 const client = new Client({ 
     intents: [
         GatewayIntentBits.Guilds, 
@@ -13,14 +22,15 @@ client.once('ready', () => {
     console.log(`Bot đã sẵn sàng! Đăng nhập: ${client.user.tag}`);
 });
 
-// Lệnh !setup để tạo tin nhắn mới
+// Lệnh !setup để gửi khung tin nhắn
 client.on('messageCreate', async (message) => {
     if (message.content === '!setup') {
         const ticketEmbed = new EmbedBuilder()
             .setColor('#2ecc71')
             .setTitle('📅 Đặt Lịch Dịch Vụ')
-            .setDescription('Nhấn vào nút bên dưới để bắt đầu đặt lịch!')
-            .setFooter({ text: 'Hệ thống hỗ trợ tự động' });
+            .setDescription('Nhấn vào nút **Đặt Lịch Ngay** bên dưới để mở yêu cầu hỗ trợ.')
+            .setThumbnail(client.user.displayAvatarURL())
+            .setFooter({ text: 'Hệ thống tự động', iconURL: client.user.displayAvatarURL() });
 
         const row = new ActionRowBuilder().addComponents(
             new ButtonBuilder()
@@ -34,15 +44,12 @@ client.on('messageCreate', async (message) => {
     }
 });
 
-// XỬ LÝ NÚT BẤM (Tối ưu để không bị treo)
+// XỬ LÝ NÚT BẤM (Đã sửa lỗi "Tương tác không thành công")
 client.on('interactionCreate', async (interaction) => {
-    // Dòng này giúp bạn kiểm tra trong Logs xem bot có nhận được nút nhấn không
-    console.log("Đã nhận tương tác từ:", interaction.user.tag); 
-
     if (!interaction.isButton()) return;
-    
     if (interaction.customId === 'create_ticket') {
-        // Phản hồi ngay lập tức để Discord không báo lỗi
+        
+        // Phản hồi ngay lập tức để tránh lỗi Timeout
         await interaction.deferReply({ ephemeral: true });
 
         try {
@@ -58,8 +65,8 @@ client.on('interactionCreate', async (interaction) => {
 
             await interaction.editReply({ content: `✅ Đã tạo ticket thành công tại: ${channel}` });
         } catch (error) {
-            console.error("LỖI TẠO KÊNH:", error);
-            await interaction.editReply({ content: `❌ Có lỗi xảy ra: ${error.message}` });
+            console.error(error);
+            await interaction.editReply({ content: '❌ Lỗi: Bot không có quyền tạo kênh. Vui lòng cấp quyền Administrator cho bot.' });
         }
     }
 });
