@@ -13,7 +13,7 @@ client.once('ready', () => {
     console.log(`Bot đã sẵn sàng! Đăng nhập: ${client.user.tag}`);
 });
 
-// Lệnh !setup để gửi khung tin nhắn
+// Lệnh !setup để tạo tin nhắn mới
 client.on('messageCreate', async (message) => {
     if (message.content === '!setup') {
         const ticketEmbed = new EmbedBuilder()
@@ -34,40 +34,32 @@ client.on('messageCreate', async (message) => {
     }
 });
 
-// XỬ LÝ NÚT BẤM (Đã tối ưu để không bị lỗi timeout)
+// XỬ LÝ NÚT BẤM (Tối ưu để không bị treo)
 client.on('interactionCreate', async (interaction) => {
+    // Dòng này giúp bạn kiểm tra trong Logs xem bot có nhận được nút nhấn không
+    console.log("Đã nhận tương tác từ:", interaction.user.tag); 
+
     if (!interaction.isButton()) return;
+    
     if (interaction.customId === 'create_ticket') {
-        
-        // 1. Phản hồi "ngầm" cho Discord biết là bot đã nhận lệnh
+        // Phản hồi ngay lập tức để Discord không báo lỗi
         await interaction.deferReply({ ephemeral: true });
 
         try {
-            // 2. Tạo kênh mới
             const channel = await interaction.guild.channels.create({
                 name: `ticket-${interaction.user.username}`,
                 type: ChannelType.GuildText,
                 permissionOverwrites: [
-                    {
-                        id: interaction.guild.id,
-                        deny: [PermissionsBitField.Flags.ViewChannel],
-                    },
-                    {
-                        id: interaction.user.id,
-                        allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages],
-                    },
+                    { id: interaction.guild.id, deny: [PermissionsBitField.Flags.ViewChannel] },
+                    { id: interaction.user.id, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages] },
+                    { id: client.user.id, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.ManageChannels] }
                 ],
             });
 
-            // 3. Cập nhật kết quả vào tin nhắn ẩn đã defer
-            await interaction.editReply({ 
-                content: `✅ Đã tạo ticket thành công tại: ${channel}` 
-            });
+            await interaction.editReply({ content: `✅ Đã tạo ticket thành công tại: ${channel}` });
         } catch (error) {
-            console.error(error);
-            await interaction.editReply({ 
-                content: '❌ Có lỗi xảy ra, hãy kiểm tra quyền của bot!' 
-            });
+            console.error("LỖI TẠO KÊNH:", error);
+            await interaction.editReply({ content: `❌ Có lỗi xảy ra: ${error.message}` });
         }
     }
 });
